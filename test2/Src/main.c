@@ -105,7 +105,7 @@ int main(void)
   while (1)
   {
 
-тут мой код и еще код
+//тут мой код и еще код
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
