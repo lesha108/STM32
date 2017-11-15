@@ -1,0 +1,46 @@
+Configuration	test2
+STM32CubeMX 	4.22.0
+Date	08/15/2017
+MCU	STM32F103RETx
+
+
+
+PERIPHERALS	MODES	FUNCTIONS	PINS
+SYS	Serial Wire	SYS_JTCK-SWCLK	PA14
+SYS	Serial Wire	SYS_JTMS-SWDIO	PA13
+SYS	SysTick	SYS_VS_Systick	VP_SYS_VS_Systick
+
+
+
+Pin Nb	PINs	FUNCTIONs	LABELs
+30	PB11	GPIO_Output	
+46	PA13	SYS_JTMS-SWDIO	
+49	PA14	SYS_JTCK-SWCLK	
+
+
+
+SOFTWARE PROJECT
+
+Project Settings : 
+Project Name : test2
+Project Folder : C:\stm32\test2\test2
+Toolchain / IDE : SW4STM32
+Firmware Package Name and Version : STM32Cube FW_F1 V1.6.0
+
+
+Code Generation Settings : 
+STM32Cube Firmware Library Package : Copy only the necessary library files
+Generate peripheral initialization as a pair of '.c/.h' files per peripheral : Yes
+Backup previously generated files when re-generating : No
+Delete previously generated files when not re-generated : Yes
+Set all free pins as analog (to optimize the power consumption) : Yes
+
+
+Toolchains Settings : 
+Compiler Optimizations : Balanced Size/Speed
+
+
+
+
+
+
