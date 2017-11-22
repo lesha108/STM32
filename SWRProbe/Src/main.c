@@ -45,6 +45,8 @@
 #include "gpio.h"
 
 /* USER CODE BEGIN Includes */
+#include "dwt_stm32_delay.h"
+#include "LiquidCrystal_I2C.h"
 
 /* USER CODE END Includes */
 
@@ -98,6 +100,25 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
 
+  if(DWT_Delay_Init())
+  {
+    Error_Handler(); /* Call Error Handler */
+  }
+  LCDI2C_init(0x27,16,2);
+
+  int i;
+  for( i = 0; i< 3; i++)
+  {
+    LCDI2C_backlight();
+    HAL_Delay(250);
+    LCDI2C_noBacklight();
+    HAL_Delay(250);
+  }
+  LCDI2C_backlight(); // finish with backlight on
+  LCDI2C_clear();
+  LCDI2C_write_String("Hello");
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -107,6 +128,22 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
+
+   /* 1s Delay */
+    DWT_Delay_us(1000000);
+	  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_11);
+//	  HAL_Delay(100);
+    DWT_Delay_us(100000);
+	  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_11);
+	    DWT_Delay_us(100000);
+//	  HAL_Delay(100);
+	  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_11);
+	    DWT_Delay_us(100000);
+//	  HAL_Delay(100);
+	  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_11);
+	    DWT_Delay_us(2000000);
+//	  HAL_Delay(2000);
+
 
   }
   /* USER CODE END 3 */
