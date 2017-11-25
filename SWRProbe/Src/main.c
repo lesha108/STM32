@@ -39,6 +39,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f1xx_hal.h"
+#include "adc.h"
+#include "dma.h"
 #include "i2c.h"
 #include "tim.h"
 #include "usart.h"
@@ -54,6 +56,17 @@
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+uint32_t freqCnt;
+
+#define SAMPLE_RATE 10
+#define NUM_CHANNELS 5
+#define ADCCONVERTEDVALUES_BUFFER_SIZE ((uint32_t)  (SAMPLE_RATE * NUM_CHANNELS * 2))     /* Size of array containing ADC converted values */
+
+__IO uint16_t	aADCxConvertedValues[ADCCONVERTEDVALUES_BUFFER_SIZE]; /* ADC conversion results table of regular group, channel on rank1 */
+uint16_t        uhADCxConvertedValue_Regular_Avg_half1[NUM_CHANNELS];  /* Average of the 1st half of ADC conversion results table of regular group, channel on rank1 */
+uint16_t        uhADCxConvertedValue_Regular_Avg_half2[NUM_CHANNELS];  /* Average of the 2nd half of ADC conversion results table of regular group, channel on rank1 */
+uint16_t*       puhADCxConvertedValue_Regular_Avg;       /* Pointer to the average of the 1st or 2nd half of ADC conversion results table of regular group, channel on rank1*/
+uint8_t			ADC_new = 0;
 
 /* USER CODE END PV */
 
@@ -66,6 +79,77 @@ void SystemClock_Config(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+
+// обработчик для частотомера
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance==TIM3) //check if the interrupt comes from TIM3
+        {
+
+    	if (__HAL_TIM_GET_COMPARE(&htim3, TIM_CHANNEL_1) == 2000) { // запустили
+    		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 10000); // выключим при 10000
+    	} else { // остановили
+   	    	freqCnt = ((uint32_t)__HAL_TIM_GET_COUNTER(&htim2)) |
+   	    			  ((uint32_t)__HAL_TIM_GET_COUNTER(&htim4) << 16);
+   	    	__HAL_TIM_SET_COUNTER(&htim2, 0);
+   	    	__HAL_TIM_SET_COUNTER(&htim4, 0);
+    		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000); // включим при 2000
+    		}
+    	}
+}
+
+// обработчики для АЦП через DMA с усреднением 10 сэмплов
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *AdcHandle)
+{
+  uint32_t avg_index;
+  uint32_t ch_index;
+  uint32_t tmp_average;
+
+  /* When the 1st half of the buffer is reached, compute these results while  */
+  /* the 2nd half of the buffer is updated by the ADC and DMA transfers.      */
+
+  /* Process average of the 1st half of the buffer */
+  for (ch_index = 0; ch_index < NUM_CHANNELS; ch_index++)
+  {
+	tmp_average = 0;
+	for (avg_index = 0; avg_index < SAMPLE_RATE; avg_index++)
+	{
+		tmp_average += aADCxConvertedValues[SAMPLE_RATE*NUM_CHANNELS + ch_index + avg_index*NUM_CHANNELS];
+	}
+	uhADCxConvertedValue_Regular_Avg_half2[ch_index] = (uint16_t)(tmp_average/SAMPLE_RATE);
+  }
+  puhADCxConvertedValue_Regular_Avg = (uint16_t*)&uhADCxConvertedValue_Regular_Avg_half2;
+  ADC_new = 1;
+}
+
+/**
+  * @brief  Conversion DMA half-transfer callback in non blocking mode
+  * @param  hadc: ADC handle
+  * @retval None
+  */
+void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
+{
+  uint32_t avg_index;
+  uint32_t ch_index;
+  uint32_t tmp_average;
+
+  /* When the 1st half of the buffer is reached, compute these results while  */
+  /* the 2nd half of the buffer is updated by the ADC and DMA transfers.      */
+
+  /* Process average of the 1st half of the buffer */
+  for (ch_index = 0; ch_index < NUM_CHANNELS; ch_index++)
+  {
+	tmp_average = 0;
+	for (avg_index = 0; avg_index < SAMPLE_RATE; avg_index++)
+	{
+		tmp_average += aADCxConvertedValues[ch_index + avg_index*NUM_CHANNELS];
+	}
+	uhADCxConvertedValue_Regular_Avg_half1[ch_index] = (uint16_t)(tmp_average/SAMPLE_RATE);
+  }
+  puhADCxConvertedValue_Regular_Avg = (uint16_t*)&uhADCxConvertedValue_Regular_Avg_half1;
+  ADC_new = 1;
+}
+
 
 /* USER CODE END 0 */
 
@@ -94,16 +178,32 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_I2C1_Init();
+  MX_TIM3_Init();
+  MX_TIM4_Init();
+  MX_ADC1_Init();
 
   /* USER CODE BEGIN 2 */
 
+  // запускаем частотомер
+  HAL_TIM_Base_Start(&htim4);    //Start TIM4 without interrupt
+  HAL_TIM_Base_Start(&htim2);    //Start TIM2 without interrupt
+  HAL_TIM_OC_Start_IT(&htim3, TIM_CHANNEL_1);
+
+  // запускаем вольтметры
+  HAL_ADC_Start(&hadc1);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)aADCxConvertedValues, ADCCONVERTEDVALUES_BUFFER_SIZE);
+
+  // запускаем счетчик микросекунд
   if(DWT_Delay_Init())
   {
     Error_Handler(); /* Call Error Handler */
   }
+
+  // запускаем LCD по I2C
   LCDI2C_init(0x27,16,2);
 
   int i;
@@ -145,6 +245,15 @@ int main(void)
 //	  HAL_Delay(2000);
 
 
+		static char freq_Out[20];
+
+		freqCnt = puhADCxConvertedValue_Regular_Avg[0];
+
+		sprintf(freq_Out, "%lu", freqCnt);
+        LCDI2C_clear();
+		LCDI2C_write_String("Cnt: ");
+		LCDI2C_write_String(freq_Out);
+
   }
   /* USER CODE END 3 */
 
@@ -157,6 +266,7 @@ void SystemClock_Config(void)
 
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
+  RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
@@ -182,6 +292,13 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV2;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
