@@ -42,6 +42,7 @@
 #include "adc.h"
 #include "dma.h"
 #include "i2c.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -49,6 +50,7 @@
 /* USER CODE BEGIN Includes */
 #include "dwt_stm32_delay.h"
 #include "LiquidCrystal_I2C.h"
+#include "fm25w256.h"
 
 /* USER CODE END Includes */
 
@@ -57,6 +59,7 @@
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 uint32_t freqCnt;
+uint8_t FramData = 0;
 
 #define SAMPLE_RATE 10
 #define NUM_CHANNELS 5
@@ -185,6 +188,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_ADC1_Init();
+  MX_SPI2_Init();
 
   /* USER CODE BEGIN 2 */
 
@@ -218,6 +222,8 @@ int main(void)
   LCDI2C_clear();
   LCDI2C_write_String("Hello");
 
+//  FramWriteByte(0x0000, 0xAA); // Проверяем работоспособность FRAM памяти
+  //FramData = FramReadByte(0x0000);
 
   /* USER CODE END 2 */
 
@@ -248,6 +254,7 @@ int main(void)
 		static char freq_Out[20];
 
 		freqCnt = puhADCxConvertedValue_Regular_Avg[0];
+		freqCnt = FramReadByte(0x0000);
 
 		sprintf(freq_Out, "%lu", freqCnt);
         LCDI2C_clear();
