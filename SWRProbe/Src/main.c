@@ -51,6 +51,7 @@
 #include "dwt_stm32_delay.h"
 #include "LiquidCrystal_I2C.h"
 #include "fm25w256.h"
+#include "tle6208.h"
 
 /* USER CODE END Includes */
 
@@ -60,6 +61,7 @@
 /* Private variables ---------------------------------------------------------*/
 uint32_t freqCnt;
 uint8_t FramData = 0;
+uint16_t tleCommand = 0;
 
 #define SAMPLE_RATE 10
 #define NUM_CHANNELS 5
@@ -189,6 +191,7 @@ int main(void)
   MX_TIM4_Init();
   MX_ADC1_Init();
   MX_SPI2_Init();
+  MX_SPI1_Init();
 
   /* USER CODE BEGIN 2 */
 
@@ -237,6 +240,10 @@ int main(void)
 
    /* 1s Delay */
     DWT_Delay_us(1000000);
+
+	tleCommand = (1 << 2) | (1 << 3); // LS-Switch 2 + HS-Switch 1
+	freqCnt = tleWrite(tleCommand); // пробуем зажечь светодиод
+
 	  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_11);
 //	  HAL_Delay(100);
     DWT_Delay_us(100000);
@@ -253,8 +260,11 @@ int main(void)
 
 		static char freq_Out[20];
 
-		freqCnt = puhADCxConvertedValue_Regular_Avg[0];
-		freqCnt = FramReadByte(0x0000);
+		freqCnt = puhADCxConvertedValue_Regular_Avg[0]; // проверека АЦП
+		freqCnt = FramReadByte(0x0000); // проверка чипа памяти
+
+		tleCommand = (1 << 1) | (1 << 4); // LS-Switch 1 + HS-Switch 2 = 0x12
+		freqCnt = tleWrite(tleCommand); // пробуем зажечь светодиод
 
 		sprintf(freq_Out, "%lu", freqCnt);
         LCDI2C_clear();
