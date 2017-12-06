@@ -52,6 +52,7 @@
 #include "LiquidCrystal_I2C.h"
 #include "fm25w256.h"
 #include "tle6208.h"
+#include "key8574.h"
 
 /* USER CODE END Includes */
 
@@ -265,6 +266,20 @@ int main(void)
 
 		tleCommand = (1 << 1) | (1 << 4); // LS-Switch 1 + HS-Switch 2 = 0x12
 		freqCnt = tleWrite(tleCommand); // пробуем зажечь светодиод
+
+		freqCnt = keyRead8574();
+		if (freqCnt & PCF8574_KEY1) {
+			freqCnt = 1;
+		};
+		if (freqCnt & PCF8574_KEY2) {
+			freqCnt = 2;
+		};
+		if (freqCnt & PCF8574_KEY3) {
+			freqCnt = 3;
+		};
+		if (freqCnt & PCF8574_KEY4) {
+			freqCnt = 4;
+		};
 
 		sprintf(freq_Out, "%lu", freqCnt);
         LCDI2C_clear();
