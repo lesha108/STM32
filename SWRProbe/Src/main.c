@@ -53,6 +53,7 @@
 #include "fm25w256.h"
 #include "tle6208.h"
 #include "key8574.h"
+#include "sound.h"
 
 /* USER CODE END Includes */
 
@@ -85,6 +86,22 @@ void SystemClock_Config(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+
+/*
+// обработка дл€ таймера звука
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance==TIM1) //check if the interrupt comes from TIM1
+    {
+//    	__HAL_TIM_SET_COUNTER(&htim1, 0);
+//		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 10000);
+//    	__HAL_TIM_DISABLE(&htim1);
+//		__HAL_TIM_ENABLE(&htim1);
+//    	__HAL_TIM_SET_AUTORELOAD(&htim1, 0);
+
+    }
+}
+*/
 
 // обработчик дл€ частотомера
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
@@ -193,8 +210,12 @@ int main(void)
   MX_ADC1_Init();
   MX_SPI2_Init();
   MX_SPI1_Init();
+  MX_TIM1_Init();
 
   /* USER CODE BEGIN 2 */
+
+  // запускаем звук
+  HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
 
   // запускаем частотомер
   HAL_TIM_Base_Start(&htim4);    //Start TIM4 without interrupt
@@ -225,6 +246,8 @@ int main(void)
   LCDI2C_backlight(); // finish with backlight on
   LCDI2C_clear();
   LCDI2C_write_String("Hello");
+
+  StartMusic();
 
 //  FramWriteByte(0x0000, 0xAA); // ѕровер€ем работоспособность FRAM пам€ти
   //FramData = FramReadByte(0x0000);
@@ -270,9 +293,11 @@ int main(void)
 		freqCnt = keyRead8574();
 		if (freqCnt & PCF8574_KEY1) {
 			freqCnt = 1;
+        	__HAL_TIM_DISABLE(&htim1);
 		};
 		if (freqCnt & PCF8574_KEY2) {
 			freqCnt = 2;
+			  StartMusic();
 		};
 		if (freqCnt & PCF8574_KEY3) {
 			freqCnt = 3;
